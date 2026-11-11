@@ -31,25 +31,10 @@ public final class AnarchyRegression {
         require(AnarchyNavigation.parseCurrent("Монеток: 12345")==0,"unrelated scoreboard row");
         require(AnarchyNavigation.matches(7,"/an7")&&AnarchyNavigation.matches(7,"7")&&!AnarchyNavigation.matches(17,"7"),"exact number and command search");
         require(AnarchyNavigation.matches(7,"соло")&&!AnarchyNavigation.matches(17,"соло"),"group-name search");
-        require(AnarchyNavigation.command(7).equals("an7"),"ordinary server command without chat prefix");
+        require(AnarchyNavigation.command(7).equals("an7"),"local command literal without chat prefix");
         for(int invalid:List.of(-1,0,37,88,90,Integer.MAX_VALUE)){
             boolean rejected=false;try{AnarchyNavigation.command(invalid);}catch(IllegalArgumentException expected){rejected=true;}require(rejected,"invalid target cannot produce command");
         }
-        var gate=new AnarchyTransferGate();
-        require(!gate.begin(2,2,10000,1200),"do not reconnect to current server");
-        require(gate.begin(4,2,10000,1200),"manual request accepted");
-        require(gate.pending()==4&&gate.result()==AnarchyTransferGate.Result.WAITING,"request is not assumed successful");
-        require(gate.observe(2,10500)==AnarchyTransferGate.Result.WAITING,"old sidebar cannot acknowledge transfer");
-        require(!gate.begin(7,2,11199,1200),"cooldown blocks extra inputs");
-        require(!gate.begin(4,2,11200,1200),"duplicate pending target is suppressed");
-        require(gate.begin(7,2,11200,1200),"new manual choice can replace pending request after cooldown");
-        require(gate.observe(4,11500)==AnarchyTransferGate.Result.WAITING,"late acknowledgement of old choice is ignored");
-        require(gate.observe(7,12000)==AnarchyTransferGate.Result.CONFIRMED&&gate.pending()==0,"only requested sidebar confirms connection");
-        require(gate.begin(2,7,12400,1200),"another manual transfer after acknowledgement");
-        require(gate.observe(0,20399)==AnarchyTransferGate.Result.WAITING,"temporary missing sidebar retains request");
-        require(gate.observe(0,20400)==AnarchyTransferGate.Result.TIMED_OUT,"missing confirmation times out");
-        require(gate.begin(2,7,20401,1200),"manual retry after timeout");
-        gate.clear();require(gate.pending()==0&&gate.result()==AnarchyTransferGate.Result.IDLE,"disabling clears pending feedback");
         options.favorites=null;options.delayMs=-1;options.lastSelected=90;options.sanitize();require(options.delayMs==800&&options.lastSelected==0&&options.favorites.isEmpty(),"sanitize old/null preferences");
         options.delayMs=Integer.MAX_VALUE;options.sanitize();require(options.delayMs==5000,"cap corrupted cooldown");
         System.out.println("Anarchy navigation, favorites, sidebar parsing and transfer-state regression checks passed");

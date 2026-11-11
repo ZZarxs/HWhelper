@@ -1,15 +1,22 @@
 package ru.hwhelper.client;
 
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.screen.v1.*;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.LevelLoadingScreen;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.network.Connection;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.scores.*;
 import org.lwjgl.glfw.GLFW;
 
-/** Manual shortcuts: exactly one ordinary /anN command per accepted input, without background hopping. */
+/** One shared, cancellable server-menu route for local commands, cards and keyboard shortcuts. */
 final class AnarchySwitcher {
-    private final HwConfig config;private final AnarchyTransferGate gate=new AnarchyTransferGate();
+    private final HwConfig config;private final AnarchyTransferFlow flow=new AnarchyTransferFlow();
+    private final AnarchyMenuDriver driver=new AnarchyMenuDriver();
+    private Connection routeConnection;private Object initialScreen;private long requestedAt;private boolean reported=true;
     private KeyMapping open,previous,next;private Object connection;private int current,ticks;
     private String notice="";private long noticeUntil,noticeBegan;
     private final UiTransition entrance=new UiTransition(0,170);
@@ -18,11 +25,23 @@ final class AnarchySwitcher {
         open=KeyBindingHelper.registerKeyBinding(new KeyMapping("key.hwhelper.anarchy_menu",GLFW.GLFW_KEY_G,category));
         previous=KeyBindingHelper.registerKeyBinding(new KeyMapping("key.hwhelper.anarchy_previous",GLFW.GLFW_KEY_PAGE_UP,category));
         next=KeyBindingHelper.registerKeyBinding(new KeyMapping("key.hwhelper.anarchy_next",GLFW.GLFW_KEY_PAGE_DOWN,category));
+        AnarchyClientCommands.install(this);
+        ScreenEvents.AFTER_INIT.register((client,screen,w,h)->{
+            ScreenKeyboardEvents.beforeKeyPress(screen).register((s,event)->{
+                if(event.key()==GLFW.GLFW_KEY_ESCAPE||s instanceof AbstractContainerScreen<?>)cancel("Переход отменён вручную");
+            });
+            ScreenMouseEvents.beforeMouseClick(screen).register((s,event)->cancel("Переход отменён ручным действием"));
+            ScreenMouseEvents.beforeMouseScroll(screen).register((s,x,y,dx,dy)->cancel("Переход отменён ручным действием"));
+            ScreenMouseEvents.beforeMouseDrag(screen).register((s,event,dx,dy)->cancel("Переход отменён ручным действием"));
+        });
     }
     private static long now(){return System.nanoTime()/1_000_000;}
     int current(){return current;}
-    int pending(){return gate.pending();}
-    String status(){return pending()>0?"Переход: "+AnarchyNavigation.name(pending()):"Текущая: "+AnarchyNavigation.name(current);}
+    int pending(){return flow.active()?flow.target():0;}
+    String status(){return pending()>0?switch(flow.stage()){
+        case LOBBY->"Переход в лобби…";case MODES->"Ожидаю меню компаса…";case LITE->"Выбираю Лайт-анархию…";
+        case GROUP->"Выбираю группу анархий…";default->"Подключение: "+AnarchyNavigation.name(pending());
+    }:"Текущая: "+AnarchyNavigation.name(current);}
     String shortcuts(){return previous.getTranslatedKeyMessage().getString()+" / "+next.getTranslatedKeyMessage().getString();}
     void tick(Minecraft client){
         boolean menu=false;int direction=0;
@@ -31,13 +50,20 @@ final class AnarchySwitcher {
         while(next.consumeClick())direction=1;
         Object activeConnection=client.getConnection();
         if(connection!=activeConnection){connection=activeConnection;current=0;ticks=0;}
-        if(!config.anarchy.enabled){gate.clear();return;}
-        if(client.player==null||client.level==null)return;
-        if(++ticks%5==0){
-            current=readCurrent(client);var old=gate.result();var result=gate.observe(current,now());
-            if(result!=old&&result==AnarchyTransferGate.Result.CONFIRMED)notify("Подключено: "+AnarchyNavigation.name(current));
-            else if(result!=old&&result==AnarchyTransferGate.Result.TIMED_OUT)notify("Переход не подтверждён сервером");
+        boolean ready=client.player!=null&&client.level!=null&&client.getConnection()!=null;
+        if(ready&&(++ticks%5==0||flow.active()))current=readCurrent(client);
+        if(!config.anarchy.enabled)cancel("Переход отменён: модуль выключен");
+        if(flow.active()){
+            boolean initial=client.screen!=null&&client.screen==initialScreen&&now()-requestedAt<500;
+            boolean foreign=client.screen!=null&&!(client.screen instanceof AbstractContainerScreen<?>)&&!(client.screen instanceof LevelLoadingScreen)&&!initial;
+            var snapshot=AnarchyMenuDriver.snapshot(client);
+            var observation=new AnarchyTransferFlow.Observation(routeConnection!=null&&routeConnection.isConnected(),ready&&!initial,current,
+                    ready&&current==0&&AnarchyMenuDriver.compass(client)>=0,foreign,snapshot);
+            var action=flow.poll(observation,now());
+            if(action!=null)try{driver.apply(client,action);}catch(RuntimeException exception){flow.fail("Переход остановлен: "+exception.getMessage());}
         }
+        driver.restore(client,!flow.active());finish(client);
+        if(!config.anarchy.enabled||!ready)return;
         // Consume and discard bindings while typing or using any other screen.
         if(client.screen!=null)return;
         if(menu){client.setScreen(new AnarchySwitchScreen(config,this,null));return;}
@@ -67,25 +93,30 @@ final class AnarchySwitcher {
         Minecraft client=Minecraft.getInstance();long now=now();
         if(!config.anarchy.enabled){notify("Включите модуль «Быстрый переход»");return false;}
         if(client.player==null||client.level==null||client.getConnection()==null||client.hasSingleplayerServer()){notify("Доступно при подключении к серверу");return false;}
-        if(!config.anarchy.allows(number)){notify("Эта группа выключена в настройках");return false;}
-        if(number==current){notify("Вы уже на "+AnarchyNavigation.name(number));return false;}
-        if(!gate.begin(number,current,now,config.anarchy.delayMs)){
-            notify(gate.remaining(now)>0?"Пауза: "+String.format(java.util.Locale.ROOT,"%.1f",gate.remaining(now)/1000.0)+" сек":"Переход уже запрошен");return false;
+        current=readCurrent(client);
+        if(!flow.begin(number,current,now,config.anarchy.delayMs)){
+            notify(flow.error());return false;
         }
-        try{client.getConnection().sendCommand(AnarchyNavigation.command(number));}
-        catch(RuntimeException e){gate.clear();notify("Не удалось отправить команду перехода");return false;}
+        routeConnection=client.getConnection().getConnection();initialScreen=client.screen;requestedAt=now;reported=false;
         config.anarchy.lastSelected=number;config.save();notify("Переход: "+AnarchyNavigation.name(number));return true;
+    }
+    private void cancel(String message){flow.cancel(message);driver.restore(Minecraft.getInstance(),!flow.active());finish(Minecraft.getInstance());}
+    private void finish(Minecraft client){
+        if(flow.active()||reported)return;reported=true;
+        String message=flow.stage()==AnarchyTransferFlow.Stage.DONE?"Подключено: "+AnarchyNavigation.name(flow.target()):flow.error();notify(message);
+        if(flow.stage()!=AnarchyTransferFlow.Stage.DONE&&client.player!=null)client.player.displayClientMessage(Component.literal("HWhelper: "+message),false);
+        routeConnection=null;initialScreen=null;
     }
     private void notify(String text){notice=text;noticeBegan=now();noticeUntil=noticeBegan+2800;entrance.reset(0);}
     String notice(){return now()<noticeUntil?notice:"";}
     void render(GuiGraphics g){
         if(!config.anarchy.enabled||!config.anarchy.feedback)return;
-        long now=now();float alpha=entrance.update(now<noticeUntil?1:0,System.nanoTime(),config.animations);
+        long now=now();float alpha=entrance.update(flow.active()||now<noticeUntil?1:0,System.nanoTime(),config.animations);
         if(alpha<.01)return;
         int w=Math.min(286,g.guiWidth()-16),h=38,x=(g.guiWidth()-w)/2,y=g.guiHeight()-88+(int)((1-alpha)*7);
         UiStyle.glass(g,x,y,w,h,config.accent(),0,true,(int)(238*alpha));
         UiStyle.shape(g,x+10,y+11,3,15,1,UiStyle.alpha(config.accent(),alpha));
-        UiStyle.fitted(g,notice,x+21,y+9,w-32,10,UiStyle.alpha(UiStyle.WHITE,alpha));
+        UiStyle.fitted(g,flow.active()?status():notice,x+21,y+9,w-32,10,UiStyle.alpha(UiStyle.WHITE,alpha));
         UiStyle.fitted(g,shortcuts()+" · "+open.getTranslatedKeyMessage().getString()+" — выбор анархии",x+21,y+24,w-32,8,UiStyle.alpha(UiStyle.MUTED,alpha));
     }
 }

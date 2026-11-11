@@ -64,6 +64,13 @@ tasks.register('anarchyRegression', JavaExec) {
     mainClass = 'ru.hwhelper.client.AnarchyRegression'
 }
 tasks.named('check') { dependsOn tasks.named('anarchyRegression') }
+
+tasks.register('anarchyTransferRegression', JavaExec) {
+    dependsOn tasks.named('regressionClasses')
+    classpath = sourceSets.regression.runtimeClasspath
+    mainClass = 'ru.hwhelper.client.AnarchyTransferRegression'
+}
+tasks.named('check') { dependsOn tasks.named('anarchyTransferRegression') }
 tasks.register('standaloneNativeProbe', JavaExec) {
     dependsOn tasks.named('regressionClasses')
     classpath = sourceSets.regression.runtimeClasspath
