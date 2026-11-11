@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "hwhelper",
+  "version": "${version}",
+  "name": "HWhelper",
+  "description": "HWhelper: шахты HollyWorld, золотые спавнеры, косметика, Dynamic Island и World Lyrics. Встроенный Telegram и музыка Windows без EXE/Python. Автор: Zarxs.",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "ru.hwhelper.client.HWhelperClient"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.18.1",
+    "minecraft": "~1.21.11",
+    "java": ">=21",
+    "fabric-api": "*"
+  },
+  "authors": [
+    "Zarxs"
+  ],
+  "icon": "assets/hwhelper/icon.png",
+  "mixins": [
+    "hwhelper.mixins.json"
+  ],
+  "provides": [
+    "mines_hud"
+  ]
+}

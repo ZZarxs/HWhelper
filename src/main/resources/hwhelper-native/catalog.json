@@ -1,0 +1,14 @@
+{
+  "win-x64": {
+    "libcrypto-3-x64.dll": "2602dae288d3bc532d50cd918648fd257309832b7745a1aa1974eda486f79f68",
+    "libssl-3-x64.dll": "953a1204ad9ef71b8761d61b97c7e8404bc0e6199d7c4046f6b285ddc5440cb8",
+    "tdjson.dll": "12e6f67f720ffd3e31f68a4bba24da6c0bc38f97d0e3f15cfe4aa0cea70ab72b",
+    "z.dll": "01008f60864ac0c704e61604ba5567be9d040f4ca1e5cdc8b38a6966c5f78977"
+  },
+  "win-arm64": {
+    "libcrypto-3-arm64.dll": "bb613625ad1c234ee5d9090f19bbb821f3bdb6267d53c6d99c3e21f4f5dcb46f",
+    "libssl-3-arm64.dll": "bbbdf7cf72f5c2d3e4cff65b14116d1cb308aaa8f2dd1bdabd794c803ed4d064",
+    "tdjson.dll": "00ffa72c562eff259996863256e7b818b2d742085d0debaffd26981f7dad30a2",
+    "z.dll": "8993b14c95bdabdc42ec27bd69393be49d68682112df16c1d28df3879f085a53"
+  }
+}

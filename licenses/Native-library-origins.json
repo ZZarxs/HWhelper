@@ -1,0 +1,41 @@
+{
+  "tdlib": {
+    "version": "v1.8.69",
+    "source": "https://github.com/ForNeVeR/tdlib.native/releases/tag/v1.8.69",
+    "assets": [
+      {
+        "name": "tdlib.native.windows.aarch64.zip",
+        "url": "https://github.com/ForNeVeR/tdlib.native/releases/download/v1.8.69/tdlib.native.windows.aarch64.zip",
+        "digest": "sha256:4fc5c61eec4ff35ebe39885537cbd9676d4b0cd869adeab26b5ff83473a9efa2"
+      },
+      {
+        "name": "tdlib.native.windows.x86-64.zip",
+        "url": "https://github.com/ForNeVeR/tdlib.native/releases/download/v1.8.69/tdlib.native.windows.x86-64.zip",
+        "digest": "sha256:1366905626d8a55395938532b48d2b16dceb770730bd192644463d9242970166"
+      }
+    ],
+    "license": "BSL-1.0",
+    "source_project": "https://github.com/tdlib/td"
+  },
+  "jna": {
+    "version": "5.17.0",
+    "source": "https://github.com/java-native-access/jna/tree/5.17.0",
+    "license": "Apache-2.0 OR LGPL-2.1-or-later"
+  },
+  "zxing": {
+    "version": "3.5.3",
+    "source": "https://github.com/zxing/zxing/tree/zxing-3.5.3",
+    "license": "Apache-2.0"
+  },
+  "native_dependencies": {
+    "OpenSSL": "Apache-2.0, supplied in pinned tdlib.native archives",
+    "zlib": "Zlib, supplied in pinned tdlib.native archives"
+  },
+  "license_sources": {
+    "OpenSSL-Apache-2.0.txt": "https://raw.githubusercontent.com/openssl/openssl/openssl-3.5/LICENSE.txt",
+    "zlib-license.txt": "https://raw.githubusercontent.com/madler/zlib/v1.3.1/LICENSE",
+    "JNA-LGPL-2.1.txt": "https://raw.githubusercontent.com/java-native-access/jna/5.17.0/LICENSE",
+    "JNA-Apache-2.0.txt": "https://raw.githubusercontent.com/java-native-access/jna/5.17.0/AL2.0",
+    "ZXing-Apache-2.0.txt": "https://raw.githubusercontent.com/zxing/zxing/zxing-3.5.3/LICENSE"
+  }
+}

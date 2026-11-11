@@ -1,0 +1,32 @@
+# Build output and local tooling
+.gradle/
+build/
+out/
+outputs/
+work/
+logs/
+*.log
+.idea/
+.vscode/
+*.iml
+Thumbs.db
+.DS_Store
+
+# Local settings, account sessions and secrets
+config/
+runtime/
+database/
+.env
+.env.*
+*.session
+*.session-*
+*.dpapi
+credentials*.json
+telegram-login-qr.png
+
+# Legacy bridge, launchers and old distributables
+telegram_bridge/
+launcher/
+*.exe
+*.rar
+*.zip

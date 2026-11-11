@@ -1,0 +1,18 @@
+{
+  "unique_key": {
+    "sounds": [
+      {
+        "name": "hwhelper:unique_key",
+        "stream": false
+      }
+    ]
+  },
+  "shadow_clones": {
+    "sounds": [
+      {
+        "name": "hwhelper:shadow_clones",
+        "stream": false
+      }
+    ]
+  }
+}
