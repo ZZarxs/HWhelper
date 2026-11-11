@@ -14,6 +14,7 @@ public final class HwConfig {
     private static final Path LEGACY_FILE = FabricLoader.getInstance().getConfigDir().resolve("mines-hud.json");
 
     public boolean telegramAutoConnect = true;
+    public AnarchyOptions anarchy=new AnarchyOptions();
     public int maxEntries = 20;
     public boolean enabled = true;
     public boolean keyAlertEnabled = true;
@@ -106,6 +107,7 @@ public final class HwConfig {
     }
 
     private HwConfig sanitize() {
+        if(anarchy==null)anarchy=new AnarchyOptions();anarchy.sanitize();
         if(cosmetics==null)cosmetics=new CosmeticOptions();cosmetics.sanitize();
         if(worldLyrics==null)worldLyrics=new WorldLyricOptions();worldLyrics.sanitize();
         if(keySoundFile==null)keySoundFile="";

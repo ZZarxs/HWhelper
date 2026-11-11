@@ -2,6 +2,9 @@
   "key.hwhelper.settings": "Open HWhelper",
   "key.category.hwhelper.settings": "HWhelper",
   "key.hwhelper.toggle": "Toggle mines HUD",
+  "key.hwhelper.anarchy_menu": "Anarchies: open quick selector",
+  "key.hwhelper.anarchy_previous": "Anarchies: previous server",
+  "key.hwhelper.anarchy_next": "Anarchies: next server",
   "key.hwhelper.clones": "Cosmetics: Shadow clones",
   "key.hwhelper.ravens": "Cosmetics: Raven scene"
 }

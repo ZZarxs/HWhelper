@@ -3,7 +3,7 @@
   "id": "hwhelper",
   "version": "${version}",
   "name": "HWhelper",
-  "description": "HWhelper: шахты HollyWorld, золотые спавнеры, косметика, Dynamic Island и World Lyrics. Встроенный Telegram и музыка Windows без EXE/Python. Автор: Zarxs. Исходный код для проверки: https://github.com/ZZarxs/HWhelper",
+  "description": "HWhelper: шахты HollyWorld, быстрое переключение анархий, золотые спавнеры, косметика, Dynamic Island и World Lyrics. Встроенный Telegram и музыка Windows без EXE/Python. Автор: Zarxs. Исходный код для проверки: https://github.com/ZZarxs/HWhelper",
   "contact": {
     "homepage": "https://github.com/ZZarxs/HWhelper",
     "sources": "https://github.com/ZZarxs/HWhelper",

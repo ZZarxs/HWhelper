@@ -33,6 +33,7 @@ public final class HWhelperClient implements ClientModInitializer {
     private long appearedAt = System.nanoTime();
     private TelegramService telegram;
     private LocalMediaService media;
+    private AnarchySwitcher switcher;
     private volatile List<Mine> mines = List.of();
     private volatile String error = "";
     private volatile long snapshotReceivedAt;
@@ -52,6 +53,7 @@ public final class HWhelperClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         config = HwConfig.load();
+        switcher = new AnarchySwitcher(config);
         telegram = new TelegramService(FabricLoader.getInstance().getConfigDir().resolve("hwhelper"), this::acceptSnapshot);
         media = new LocalMediaService(config, island::accept);
         if (config.telegramAutoConnect && telegram.credentialsSaved()) telegram.connectSaved();
@@ -68,10 +70,12 @@ public final class HWhelperClient implements ClientModInitializer {
                 KeyMapping.Category.register(Identifier.fromNamespaceAndPath("hwhelper", "settings"))));
         KeyMapping toggleKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
                 "key.hwhelper.toggle", GLFW.GLFW_KEY_H, settingsKey.getCategory()));
+        switcher.register(settingsKey.getCategory());
         GoldenSpawnerInfo.register(config);
         worldLyrics.register(config);
         cosmetics.register(config,settingsKey.getCategory());
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            switcher.tick(client);
             keyAlert.tick(client,config);
             cosmetics.tick(client,config);worldLyrics.tick(client,config);
             while (toggleKey.consumeClick()) {
@@ -87,6 +91,7 @@ public final class HWhelperClient implements ClientModInitializer {
         island.register(config);
     }
     TelegramService telegram(){return telegram;}
+    AnarchySwitcher switcher(){return switcher;}
     String mediaStatus(){return media.status();}
     void showClones(){cosmetics.triggerClones(Minecraft.getInstance(),config);}
     void showRavens(){cosmetics.triggerRavens(Minecraft.getInstance(),config);}
@@ -180,6 +185,7 @@ public final class HWhelperClient implements ClientModInitializer {
         if (client.screen != null && !(client.screen instanceof ChatScreen)) return;
         if (client.player == null || client.options.hideGui) return;
         island.render(graphics, config, false);
+        switcher.render(graphics);
         if (!config.enabled) return;
 
         renderHud(graphics, false);
