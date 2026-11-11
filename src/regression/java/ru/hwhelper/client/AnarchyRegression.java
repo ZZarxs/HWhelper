@@ -5,7 +5,7 @@ import java.util.*;
 /** User journeys with synthetic clocks; never connects to Minecraft or sends commands. */
 public final class AnarchyRegression {
     public static void main(String[] args){
-        var options=new AnarchyOptions();options.sanitize();
+        var options=new AnarchyOptions();options.ranges=HubSwapRanges.legacy();options.sanitize();
         require(AnarchyNavigation.available(options).size()==36,"all known Lite servers");
         options.favorites=new ArrayList<>(Arrays.asList(7,2,4,4,null,0,88,89,90,37));options.sanitize();
         require(options.favorites.equals(List.of(2,4,7)),"favorites discard duplicates and nonexistent numbers");
@@ -32,7 +32,7 @@ public final class AnarchyRegression {
         require(AnarchyNavigation.matches(7,"/an7")&&AnarchyNavigation.matches(7,"7")&&!AnarchyNavigation.matches(17,"7"),"exact number and command search");
         require(AnarchyNavigation.matches(7,"соло")&&!AnarchyNavigation.matches(17,"соло"),"group-name search");
         require(AnarchyNavigation.command(7).equals("an7"),"local command literal without chat prefix");
-        for(int invalid:List.of(-1,0,37,88,90,Integer.MAX_VALUE)){
+        for(int invalid:List.of(-1,0,1000,Integer.MAX_VALUE)){
             boolean rejected=false;try{AnarchyNavigation.command(invalid);}catch(IllegalArgumentException expected){rejected=true;}require(rejected,"invalid target cannot produce command");
         }
         options.favorites=null;options.delayMs=-1;options.lastSelected=90;options.sanitize();require(options.delayMs==800&&options.lastSelected==0&&options.favorites.isEmpty(),"sanitize old/null preferences");

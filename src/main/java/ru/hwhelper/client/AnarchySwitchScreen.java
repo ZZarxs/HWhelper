@@ -32,7 +32,7 @@ final class AnarchySwitchScreen extends Screen {
         button(x+w-13-favWidth,y+h-30,favWidth,config.anarchy.favoritesOnly?"★ Избранное":"Все серверы",()->{config.anarchy.favoritesOnly=!config.anarchy.favoritesOnly;config.save();page=0;clearWidgets();init();});
         setInitialFocus(search);
     }
-    private List<Integer> filtered(){return AnarchyNavigation.available(config.anarchy).stream().filter(n->(group<0||AnarchyNavigation.group(n)==group)&&AnarchyNavigation.matches(n,query)).toList();}
+    private List<Integer> filtered(){return AnarchyNavigation.available(config.anarchy).stream().filter(n->(group<0||config.anarchy.ranges.group(n)==group)&&AnarchyNavigation.matches(n,query,config.anarchy.ranges)).toList();}
     public void renderBackground(GuiGraphics g,int mx,int my,float dt){g.fill(0,0,width,height,0xB00B0C12);}
     public void render(GuiGraphics g,int mx,int my,float dt){
         float alpha=opening.update(1,System.nanoTime(),config.animations);cards.clear();
@@ -51,7 +51,7 @@ final class AnarchySwitchScreen extends Screen {
             int tint=current?0xFF94DEB2:config.accent();
             UiStyle.glass(g,cx,cy,cardWidth,33,tint,current||waiting?1:0,false,hover?255:225);
             UiStyle.label(g,"#"+n,cx+8,cy+6,13,current?tint:UiStyle.WHITE);
-            String label=new String[]{"Соло","Дуо","Трио","Клан"}[AnarchyNavigation.group(n)];
+            String label=new String[]{"Соло","Дуо","Трио","Клан"}[config.anarchy.ranges.group(n)];
             UiStyle.label(g,waiting?"Переход…":current?"Вы здесь":label,cx+8,cy+23,7,current?tint:UiStyle.MUTED);
             boolean favorite=config.anarchy.favorites.contains(n);
             UiStyle.icon(g,"star",cx+cardWidth-18,cy+7,10,favorite?config.accent():UiStyle.EDGE);

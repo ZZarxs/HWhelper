@@ -85,7 +85,7 @@ public final class TelegramService implements AutoCloseable {
                     params.addProperty("database_encryption_key",Base64.getEncoder().encodeToString(credentials.databaseKey()));
                     params.addProperty("use_file_database",false);params.addProperty("use_chat_info_database",true);params.addProperty("use_message_database",false);params.addProperty("use_secret_chats",false);
                     params.addProperty("api_id",credentials.apiId());params.addProperty("api_hash",credentials.apiHash());params.addProperty("system_language_code","ru");params.addProperty("device_model","HWhelper / "+System.getProperty("os.arch"));
-                    params.addProperty("system_version",System.getProperty("os.version"));params.addProperty("application_version","3.1.1");
+                    params.addProperty("system_version",System.getProperty("os.version"));params.addProperty("application_version","3.2.0");
                     send(params,response->{if(type(response).equals("error")){status=new Status(Phase.ERROR,friendly(string(response,"message")),"","");closed=true;}});
                 }
                 case "authorizationStateWaitEncryptionKey"->{JsonObject key=function("checkDatabaseEncryptionKey");key.addProperty("encryption_key",Base64.getEncoder().encodeToString(credentials.databaseKey()));send(key,response->{if(type(response).equals("error")){status=new Status(Phase.ERROR,"Не удалось открыть локальную сессию Telegram","","");closed=true;}});}

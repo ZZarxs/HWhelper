@@ -65,11 +65,12 @@ public final class HWhelperScreen extends Screen {
         action(telegram,"Настроить Telegram →",()->minecraft.setScreen(new TelegramSettingsScreen(c,hud,this)));
         Module navigation=module(connection,"Быстрый переход",()->c.anarchy.enabled,()->c.anarchy.enabled=!c.anarchy.enabled);
         action(navigation,"Выбрать анархию →",()->minecraft.setScreen(new AnarchySwitchScreen(c,hud.switcher(),this)));
+        action(navigation,"HubSwap: диапазоны и алиасы →",()->minecraft.setScreen(new HubSwapSettingsScreen(c,hud.switcher(),this)));
         bool(navigation,"Только избранные",()->c.anarchy.favoritesOnly,()->c.anarchy.favoritesOnly=!c.anarchy.favoritesOnly);
-        bool(navigation,"СолоЛайт 1–9",()->c.anarchy.solo,()->c.anarchy.solo=!c.anarchy.solo);
-        bool(navigation,"ДуоЛайт 10–19",()->c.anarchy.duo,()->c.anarchy.duo=!c.anarchy.duo);
-        bool(navigation,"ТриоЛайт 20–29",()->c.anarchy.trio,()->c.anarchy.trio=!c.anarchy.trio);
-        bool(navigation,"КланЛайт 30–36",()->c.anarchy.clan,()->c.anarchy.clan=!c.anarchy.clan);
+        bool(navigation,"СолоЛайт",()->c.anarchy.solo,()->c.anarchy.solo=!c.anarchy.solo);
+        bool(navigation,"ДуоЛайт",()->c.anarchy.duo,()->c.anarchy.duo=!c.anarchy.duo);
+        bool(navigation,"ТриоЛайт",()->c.anarchy.trio,()->c.anarchy.trio=!c.anarchy.trio);
+        bool(navigation,"КланЛайт",()->c.anarchy.clan,()->c.anarchy.clan=!c.anarchy.clan);
         bool(navigation,"По кругу",()->c.anarchy.wrap,()->c.anarchy.wrap=!c.anarchy.wrap);
         bool(navigation,"Уведомления",()->c.anarchy.feedback,()->c.anarchy.feedback=!c.anarchy.feedback);
         number(navigation,"Пауза, мс",()->c.anarchy.delayMs,v->c.anarchy.delayMs=(int)v,800,5000,100);
@@ -312,7 +313,7 @@ public final class HWhelperScreen extends Screen {
         UiStyle.fitted(g,"ЛКМ — вкл. · ПКМ — настройки · ESC — закрыть",x+13,y+h-16,w-140,7,alpha(UiStyle.MUTED,a));
         UiStyle.icon(g,"grid",x+w-108,y+h-19,12,alpha(compactColumns?c.accent():UiStyle.MUTED,a));
         control(x+w-112,y+h-22,20,18,()->{compactColumns=!compactColumns;resetScroll();});
-        UiStyle.label(g,"Zarxs / 3.1.1",x+w-85,y+h-16,8,alpha(c.accent(),a));
+        UiStyle.label(g,"Zarxs / 3.2.0",x+w-85,y+h-16,8,alpha(c.accent(),a));
         if(y+h+40<height){
             String brand="HWhelper";var text=UiStyle.text(brand,18);int tw=font.width(text),bx=(width-tw)/2,by=y+h+16;
             g.drawString(font,text,bx,by,alpha(0xFFAAA3AB,a),false);

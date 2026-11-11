@@ -3,21 +3,25 @@ package ru.hwhelper.client;
 import java.util.*;
 import java.util.regex.*;
 
-/** HollyWorld Lite numbers are global: Solo 1–9, Duo 10–19, Trio 20–29, Clan 30–36. */
+/** Labels and navigation share the configured krsHubSwap-compatible category ranges. */
 final class AnarchyNavigation {
+    private static final HubSwapRanges DEFAULT=new HubSwapRanges();
     private static final String[] NAMES={"СолоЛайт","ДуоЛайт","ТриоЛайт","КланЛайт"};
     private static final Pattern CURRENT=Pattern.compile("(?:СолоЛайт|ДуоЛайт|ТриоЛайт|КланЛайт)\\s*#\\s*(\\d+)(?!\\d)",Pattern.CASE_INSENSITIVE|Pattern.UNICODE_CASE);
-    static int group(int number){return number<1||number>36?-1:number<10?0:number<20?1:number<30?2:3;}
+    static int group(int number){return DEFAULT.group(number);}
     static String name(int number){int group=group(number);return group<0?"Не определена":NAMES[group]+" #"+number;}
     static int parseCurrent(String text){
+        return parseCurrent(text,DEFAULT);
+    }
+    static int parseCurrent(String text,HubSwapRanges ranges){
         if(text==null)return 0;
         Matcher matcher=CURRENT.matcher(text.replaceAll("§.","").replace('\u00A0',' '));
         if(!matcher.find())return 0;
-        try{int number=Integer.parseInt(matcher.group(1));return group(number)<0?0:number;}catch(NumberFormatException e){return 0;}
+        try{int number=Integer.parseInt(matcher.group(1));return ranges.group(number)<0?0:number;}catch(NumberFormatException e){return 0;}
     }
     static List<Integer> available(AnarchyOptions options){
         List<Integer> result=new ArrayList<>();
-        for(int number=1;number<=36;number++)if(options.allows(number)&&(!options.favoritesOnly||options.favorites.contains(number)))result.add(number);
+        for(int number=1;number<=options.ranges.total;number++)if(options.allows(number)&&(!options.favoritesOnly||options.favorites.contains(number)))result.add(number);
         return List.copyOf(result);
     }
     static int step(List<Integer> numbers,int from,int direction,boolean wrap){
@@ -29,10 +33,13 @@ final class AnarchyNavigation {
         int value=numbers.get(next);return value==from?0:value;
     }
     static boolean matches(int number,String query){
+        return matches(number,query,DEFAULT);
+    }
+    static boolean matches(int number,String query,HubSwapRanges ranges){
         String text=query.toLowerCase(Locale.ROOT).strip();
         if(text.isBlank())return true;
         if(text.matches("(?:/?an)?\\d+"))try{return number==Integer.parseInt(text.replaceFirst("^/?an",""));}catch(NumberFormatException e){return false;}
-        return name(number).toLowerCase(Locale.ROOT).contains(text);
+        return ranges.name(number).toLowerCase(Locale.ROOT).contains(text);
     }
-    static String command(int number){if(group(number)<0)throw new IllegalArgumentException("Unsupported Lite number");return "an"+number;}
+    static String command(int number){if(number<1||number>HubSwapRanges.LIMIT)throw new IllegalArgumentException("Unsupported Lite number");return "an"+number;}
 }

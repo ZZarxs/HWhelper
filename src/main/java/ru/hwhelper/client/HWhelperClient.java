@@ -53,6 +53,7 @@ public final class HWhelperClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         config = HwConfig.load();
+        HubSwapLegacyImport.importOnce(config);
         switcher = new AnarchySwitcher(config);
         telegram = new TelegramService(FabricLoader.getInstance().getConfigDir().resolve("hwhelper"), this::acceptSnapshot);
         media = new LocalMediaService(config, island::accept);
