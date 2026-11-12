@@ -313,7 +313,7 @@ public final class HWhelperScreen extends Screen {
         UiStyle.fitted(g,"ЛКМ — вкл. · ПКМ — настройки · ESC — закрыть",x+13,y+h-16,w-140,7,alpha(UiStyle.MUTED,a));
         UiStyle.icon(g,"grid",x+w-108,y+h-19,12,alpha(compactColumns?c.accent():UiStyle.MUTED,a));
         control(x+w-112,y+h-22,20,18,()->{compactColumns=!compactColumns;resetScroll();});
-        UiStyle.label(g,"Zarxs / 3.2.0",x+w-85,y+h-16,8,alpha(c.accent(),a));
+        UiStyle.label(g,"Zarxs / 3.2.1",x+w-85,y+h-16,8,alpha(c.accent(),a));
         if(y+h+40<height){
             String brand="HWhelper";var text=UiStyle.text(brand,18);int tw=font.width(text),bx=(width-tw)/2,by=y+h+16;
             g.drawString(font,text,bx,by,alpha(0xFFAAA3AB,a),false);

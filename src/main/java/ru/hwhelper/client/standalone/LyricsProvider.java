@@ -38,7 +38,7 @@ public final class LyricsProvider implements AutoCloseable {
     }
     private JsonElement request(String endpoint,Map<String,String> params)throws Exception {
         StringJoiner query=new StringJoiner("&");for(var e:params.entrySet())query.add(URLEncoder.encode(e.getKey(),java.nio.charset.StandardCharsets.UTF_8)+"="+URLEncoder.encode(e.getValue(),java.nio.charset.StandardCharsets.UTF_8));
-        var request=HttpRequest.newBuilder(URI.create("https://lrclib.net/api/"+endpoint+"?"+query)).timeout(Duration.ofSeconds(6)).header("User-Agent","HWhelper/3.2.0 Minecraft music HUD").GET().build();
+        var request=HttpRequest.newBuilder(URI.create("https://lrclib.net/api/"+endpoint+"?"+query)).timeout(Duration.ofSeconds(6)).header("User-Agent","HWhelper/3.2.1 Minecraft music HUD").GET().build();
         var response=http.send(request,HttpResponse.BodyHandlers.ofString());if(response.statusCode()!=200||response.body().length()>2_000_000)throw new java.io.IOException("Lyrics unavailable");return JsonParser.parseString(response.body());
     }
     public static JsonObject select(JsonArray rows,String title,String artist,double duration){

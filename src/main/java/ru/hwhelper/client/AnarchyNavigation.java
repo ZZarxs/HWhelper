@@ -7,17 +7,25 @@ import java.util.regex.*;
 final class AnarchyNavigation {
     private static final HubSwapRanges DEFAULT=new HubSwapRanges();
     private static final String[] NAMES={"СолоЛайт","ДуоЛайт","ТриоЛайт","КланЛайт"};
-    private static final Pattern CURRENT=Pattern.compile("(?:СолоЛайт|ДуоЛайт|ТриоЛайт|КланЛайт)\\s*#\\s*(\\d+)(?!\\d)",Pattern.CASE_INSENSITIVE|Pattern.UNICODE_CASE);
+    private static final Pattern CURRENT=Pattern.compile("(СолоЛайт|ДуоЛайт|ТриоЛайт|КланЛайт)\\s*#\\s*(\\d+)(?!\\d)",Pattern.CASE_INSENSITIVE|Pattern.UNICODE_CASE);
+    record Current(int number,String category){}
     static int group(int number){return DEFAULT.group(number);}
     static String name(int number){int group=group(number);return group<0?"Не определена":NAMES[group]+" #"+number;}
     static int parseCurrent(String text){
         return parseCurrent(text,DEFAULT);
     }
     static int parseCurrent(String text,HubSwapRanges ranges){
-        if(text==null)return 0;
+        Current current=readCurrent(text,ranges);
+        return current==null?0:current.number();
+    }
+    static Current readCurrent(String text,HubSwapRanges ranges){
+        if(text==null)return null;
         Matcher matcher=CURRENT.matcher(text.replaceAll("§.","").replace('\u00A0',' '));
-        if(!matcher.find())return 0;
-        try{int number=Integer.parseInt(matcher.group(1));return ranges.group(number)<0?0:number;}catch(NumberFormatException e){return 0;}
+        if(!matcher.find())return null;
+        try{
+            int number=Integer.parseInt(matcher.group(2));
+            return ranges.group(number)<0?null:new Current(number,AnarchyMenu.categoryKey(matcher.group(1)));
+        }catch(NumberFormatException e){return null;}
     }
     static List<Integer> available(AnarchyOptions options){
         List<Integer> result=new ArrayList<>();
@@ -36,10 +44,13 @@ final class AnarchyNavigation {
         return matches(number,query,DEFAULT);
     }
     static boolean matches(int number,String query,HubSwapRanges ranges){
+        return matches(number,query,ranges.name(number));
+    }
+    static boolean matches(int number,String query,String name){
         String text=query.toLowerCase(Locale.ROOT).strip();
         if(text.isBlank())return true;
         if(text.matches("(?:/?an)?\\d+"))try{return number==Integer.parseInt(text.replaceFirst("^/?an",""));}catch(NumberFormatException e){return false;}
-        return ranges.name(number).toLowerCase(Locale.ROOT).contains(text);
+        return name.toLowerCase(Locale.ROOT).contains(text);
     }
     static String command(int number){if(number<1||number>HubSwapRanges.LIMIT)throw new IllegalArgumentException("Unsupported Lite number");return "an"+number;}
 }

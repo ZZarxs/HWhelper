@@ -15,8 +15,10 @@ public final class AnarchyTransferRegression {
     private static final AnarchyMenu SERVERS=menu(2,1,entry(18,"","lanarchy16"),entry(19,"","lanarchy17"));
     private static Observation game(int current){return new Observation(true,true,current,false,false,null);}
     private static Observation view(AnarchyMenu menu){return new Observation(true,true,0,false,false,menu);}
-    private static AnarchyTransferFlow toCategories(){
-        var flow=new AnarchyTransferFlow();require(flow.begin(17,7,0,1200),"start target17");
+    private static AnarchyTransferFlow toCategories(){return toCategories(17,"");}
+    private static AnarchyTransferFlow toCategories(int target,String preferred){
+        var flow=new AnarchyTransferFlow();
+        require(flow.begin(target,7,0,1200,new HubSwapRanges(),preferred),"start requested target");
         require(flow.poll(game(7),1).kind()==Kind.HUB,"send supported hub command once");
         require(flow.poll(game(7),2)==null,"do not repeat hub while waiting");
         require(flow.poll(new Observation(true,false,0,false,false,null),50)==null&&flow.active(),"survive world loading with live connection");
@@ -48,9 +50,11 @@ public final class AnarchyTransferRegression {
         require(AnarchyMenu.routing(new CompoundTag()).server().isBlank(),"missing PDC is not a match");
         CompoundTag invalidType=new CompoundTag();invalidType.putString("PublicBukkitValues","not a compound");require(AnarchyMenu.routing(invalidType).category().isBlank(),"malformed NBT is harmless");
         var fake=new AnarchyMenu.Entry(70,"minecraft:stone","fake",List.of(),1,true,"duo","lanarchy17");
-        require(menu(1,1,fake).categoryButton("duo")==-1&&menu(1,1,fake).serverButton("lanarchy17","duo")==-1,"never click player-inventory slots");
+        require(menu(1,1,fake).categoryButton("duo")==-1&&menu(1,1,fake).serverButton("lanarchy17")==-1,"never click player-inventory slots");
         require(menu(0,1,entry(0,"duo","")).categoryButton("duo")==-1,"never click player container");
-        require(menu(1,1,entry(1,"solo","lanarchy17")).serverButton("lanarchy17","duo")==-1,"explicit wrong category rejected");
+        require(menu(1,1,entry(1,"solo","lanarchy17")).serverButton("lanarchy17")==1,"exact global server key wins stale group hint");
+        values.putString(AnarchyMenu.TYPE_KEY," Clan ");
+        require(AnarchyMenu.routing(custom).category().equals("clans"),"normalize singular category tag");
 
         var options=new AnarchyOptions();options.sanitize();List<Integer> requests=new ArrayList<>();int[] help={0};
         var dispatcher=new CommandDispatcher<List<Integer>>();AnarchyClientCommands.register(dispatcher,options,(source,n)->{source.add(n);return 1;},source->help[0]++);
@@ -76,6 +80,43 @@ public final class AnarchyTransferRegression {
         flow.poll(game(17),2400);require(flow.stage()==Stage.DONE,"confirm actual destination through sidebar");
         require(flow.begin(1,17,2500,1200),"new request after completion");flow.cancel("Escape");require(flow.poll(view(SERVERS),2600)==null,"cancel prevents delayed actions");
         require(!flow.begin(1,17,2700,1200),"cooldown survives cancellation");
+
+        flow=toCategories(31,"");
+        require(flow.poll(view(CATEGORIES),200).slot()==1,"profile 66 tries Duo first for 31");
+        var duoList=menu(1,2,entry(0,"solo",""),entry(1,"duo",""),entry(2,"trio",""),entry(3,"clans",""),entry(18,"duo","lanarchy16"));
+        require(flow.poll(view(duoList),300)==null&&flow.poll(view(duoList),1399)==null,"wait for delayed entries");
+        var fullDuoList=menu(1,3,entry(0,"solo",""),entry(1,"duo",""),entry(2,"trio",""),entry(3,"clans",""),entry(18,"duo","lanarchy16"),entry(19,"duo","lanarchy19"));
+        require(flow.poll(view(fullDuoList),1400)==null&&flow.poll(view(fullDuoList),2199)==null,"slot update restarts settling time");
+        require(flow.poll(view(fullDuoList),2200).slot()==3,"31 falls back to Clan in the same menu");
+        require(flow.poll(view(fullDuoList),2210)==null,"do not reuse stale Duo list");
+        var clanList=menu(1,4,entry(3,"clans",""),entry(18,"duo","lanarchy31"));
+        require(flow.poll(view(clanList),2350).slot()==18&&flow.stage()==Stage.CONFIRM,"choose exact 31 despite stale card type");
+        require(flow.poll(game(30),2400)==null&&flow.active(),"nearby server does not confirm 31");
+        flow.poll(game(31),2450);
+        require(flow.stage()==Stage.DONE,"confirm 31 on the sidebar");
+        var detected=AnarchyNavigation.readCurrent("§dКланЛайт #31",profile);
+        require(detected.number()==31&&options.remember(31,detected.category())&&options.group(31)==3,"remember confirmed Clan group");
+        flow=toCategories(31,options.category(31));
+        require(flow.poll(view(CATEGORIES),200).slot()==3,"next route uses confirmed group first");
+
+        flow=toCategories(31,"");
+        flow.poll(view(CATEGORIES),200);
+        var separateList=menu(2,1,entry(19,"clans","lanarchy17"));
+        require(flow.poll(view(separateList),300)==null&&flow.poll(view(separateList),1400).kind()==Kind.LITE,"reopen separate list instead of treating a server card as a tab");
+        require(flow.poll(view(separateList),1410)==null,"wait for reopened menu");
+        require(flow.poll(view(CATEGORIES),1500).slot()==3,"reopened selector skips the visited group");
+
+        flow=toCategories(31,"");
+        require(flow.poll(view(CATEGORIES),200).slot()==1,"start with Duo on an unchanged selector");
+        require(flow.poll(view(CATEGORIES),4200).slot()==3,"try Clan after the unchanged selector times out");
+        require(flow.poll(view(CATEGORIES),8200).slot()==0,"try Solo once");
+        require(flow.poll(view(CATEGORIES),12200).slot()==2,"try Trio once");
+        require(flow.poll(view(CATEGORIES),16200)==null&&flow.stage()==Stage.FAILED,"stop after trying all four groups");
+
+        flow=toCategories(17,"");
+        var alreadyVisible=menu(1,1,entry(1,"duo",""),entry(19,"","lanarchy17"));
+        require(flow.poll(view(alreadyVisible),200).slot()==1,"select tab when the destination list is already visible");
+        require(flow.poll(view(alreadyVisible),250).slot()==19,"select exact server in unchanged list");
 
         flow=toCategories();require(flow.poll(view(menu(1,1,entry(1,"duo",""),entry(2,"duo",""))),200)==null&&flow.stage()==Stage.FAILED,"ambiguous category stops safely");
         flow=toCategories();flow.poll(view(CATEGORIES),200);require(flow.poll(view(menu(2,1,entry(1,"","lanarchy17"),entry(2,"","lanarchy17"))),300)==null&&flow.stage()==Stage.FAILED,"ambiguous server stops safely");

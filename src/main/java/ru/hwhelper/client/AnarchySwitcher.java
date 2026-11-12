@@ -20,7 +20,7 @@ final class AnarchySwitcher {
     private final AnarchyMenuDriver driver=new AnarchyMenuDriver();
     private Connection routeConnection;private Object initialScreen,previousWorld;private long requestedAt;private boolean reported=true,alreadyHub;
     private KeyMapping open,previous,next,configuration;private Object connection;private int current,ticks;
-    private String notice="";private long noticeUntil,noticeBegan;
+    private String notice="",currentCategory="";private long noticeUntil,noticeBegan;
     private final UiTransition entrance=new UiTransition(0,170);
     AnarchySwitcher(HwConfig config){this.config=config;}
     void register(KeyMapping.Category category){
@@ -44,8 +44,8 @@ final class AnarchySwitcher {
     int pending(){return flow.active()?flow.target():0;}
     String status(){return pending()>0?switch(flow.stage()){
         case LOBBY->"Переход в лобби…";case CATEGORY->"Выбираю группу Лайт-анархий…";
-        case SERVER->"Выбираю сервер по NBT…";default->"Подключение: "+config.anarchy.ranges.name(pending());
-    }:"Текущая: "+config.anarchy.ranges.name(current);}
+        case SERVER->"Ищу анархию №"+pending()+"…";default->"Подключение к анархии №"+pending()+"…";
+    }:"Текущая: "+config.anarchy.name(current);}
     String shortcuts(){return previous.getTranslatedKeyMessage().getString()+" / "+next.getTranslatedKeyMessage().getString();}
     void tick(Minecraft client){
         boolean menu=false,settings=false;int direction=0;
@@ -64,7 +64,8 @@ final class AnarchySwitcher {
             boolean serverMenu=client.screen instanceof AbstractContainerScreen<?> container&&container.getMenu() instanceof ChestMenu&&container.getMenu().containerId>0;
             boolean foreign=client.screen!=null&&!serverMenu&&!(client.screen instanceof LevelLoadingScreen)&&!initial;
             var snapshot=AnarchyMenuDriver.snapshot(client);
-            var observation=new AnarchyTransferFlow.Observation(routeConnection!=null&&routeConnection.isConnected(),ready&&!initial,current,
+            boolean cursorClear=snapshot==null||!ready||client.player.containerMenu.getCarried().isEmpty();
+            var observation=new AnarchyTransferFlow.Observation(routeConnection!=null&&routeConnection.isConnected(),ready&&!initial&&cursorClear,current,
                     ready&&(client.level!=previousWorld||alreadyHub),foreign,snapshot);
             var action=flow.poll(observation,now());
             if(action!=null)try{driver.apply(client,action);}catch(RuntimeException exception){flow.fail("Переход остановлен: "+exception.getMessage());}
@@ -78,16 +79,25 @@ final class AnarchySwitcher {
         if(direction!=0)step(direction);
     }
     private int readCurrent(Minecraft client){
+        currentCategory="";
         Scoreboard scoreboard=client.level.getScoreboard();Objective objective=null;
         PlayerTeam team=scoreboard.getPlayersTeam(client.player.getScoreboardName());
         if(team!=null){DisplaySlot slot=DisplaySlot.teamColorToSlot(team.getColor());if(slot!=null)objective=scoreboard.getDisplayObjective(slot);}
         if(objective==null)objective=scoreboard.getDisplayObjective(DisplaySlot.SIDEBAR);
         if(objective==null)return 0;
-        int header=AnarchyNavigation.parseCurrent(objective.getDisplayName().getString(),config.anarchy.ranges);if(header>0)return header;
+        var header=AnarchyNavigation.readCurrent(objective.getDisplayName().getString(),config.anarchy.ranges);
+        if(header!=null){
+            currentCategory=header.category();
+            return header.number();
+        }
         for(var row:scoreboard.listPlayerScores(objective)){
             if(row.isHidden())continue;
             String text=PlayerTeam.formatNameForTeam(scoreboard.getPlayersTeam(row.owner()),row.ownerName()).getString();
-            int number=AnarchyNavigation.parseCurrent(text,config.anarchy.ranges);if(number>0)return number;
+            var destination=AnarchyNavigation.readCurrent(text,config.anarchy.ranges);
+            if(destination!=null){
+                currentCategory=destination.category();
+                return destination.number();
+            }
         }return 0;
     }
     void step(int direction){
@@ -102,17 +112,21 @@ final class AnarchySwitcher {
         if(!config.anarchy.enabled){notify("Включите модуль «Быстрый переход»");return false;}
         if(client.player==null||client.level==null||client.getConnection()==null||client.hasSingleplayerServer()){notify("Доступно при подключении к серверу");return false;}
         current=readCurrent(client);
-        if(!flow.begin(number,current,now,config.anarchy.delayMs,config.anarchy.ranges)){
+        if(!flow.begin(number,current,now,config.anarchy.delayMs,config.anarchy.ranges,config.anarchy.category(number))){
             notify(flow.error());return false;
         }
         routeConnection=client.getConnection().getConnection();initialScreen=client.screen;previousWorld=client.level;alreadyHub=false;requestedAt=now;reported=false;
-        config.anarchy.lastSelected=number;config.save();notify("Переход: "+config.anarchy.ranges.name(number));return true;
+        config.anarchy.lastSelected=number;config.save();notify("Переход в анархию №"+number);return true;
     }
     void cancel(String message){flow.cancel(message);finish(Minecraft.getInstance());}
     private void finish(Minecraft client){
         if(flow.active()||reported)return;reported=true;
-        String message=flow.stage()==AnarchyTransferFlow.Stage.DONE?"Подключено: "+config.anarchy.ranges.name(flow.target()):flow.error();notify(message);
-        if(flow.stage()!=AnarchyTransferFlow.Stage.DONE&&client.player!=null)client.player.displayClientMessage(Component.literal("HWhelper: "+message),false);
+        boolean done=flow.stage()==AnarchyTransferFlow.Stage.DONE;
+        if(done&&config.anarchy.remember(flow.target(),currentCategory))config.save();
+        String message=done?"Подключено: "+config.anarchy.name(flow.target()):flow.error();
+        notify(message);
+        if(flow.stage()==AnarchyTransferFlow.Stage.FAILED)HWhelperClient.LOGGER.warn("HubSwap #{} [{}]: {}",flow.target(),flow.category(),message);
+        if(!done&&client.player!=null)client.player.displayClientMessage(Component.literal("HWhelper: "+message),false);
         routeConnection=null;initialScreen=null;
     }
     private void notify(String text){notice=text;noticeBegan=now();noticeUntil=noticeBegan+2800;entrance.reset(0);}
