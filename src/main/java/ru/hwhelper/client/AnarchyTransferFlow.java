@@ -7,8 +7,9 @@ import java.util.Set;
 final class AnarchyTransferFlow {
     enum Stage { IDLE,LOBBY,CATEGORY,SERVER,CONFIRM,DONE,FAILED,CANCELLED }
     enum Kind { HUB,LITE,CLICK }
+    enum ScreenState { WORLD,SELECTOR,WAIT,FOREIGN }
     record Action(Kind kind,AnarchyMenu menu,int slot){}
-    record Observation(boolean connected,boolean ready,int current,boolean lobby,boolean foreignScreen,AnarchyMenu menu){}
+    record Observation(boolean connected,boolean ready,int current,boolean lobby,ScreenState screen,AnarchyMenu menu){}
     private Stage stage=Stage.IDLE;private int target;private long deadline,stageDeadline,allowedAt;private boolean hubSent;
     private String category="",server="",error="",clickedCategory="";
     private final Set<String> categoryOrder=new LinkedHashSet<>();
@@ -47,8 +48,8 @@ final class AnarchyTransferFlow {
         if(!active())return null;
         if(!observation.connected()){cancel("Соединение с сервером закрыто");return null;}
         if(now>=deadline||now>=stageDeadline){fail(switch(stage){case LOBBY->"Не получено подтверждение входа в лобби";case CONFIRM->"Сервер не подтвердил переход";case CATEGORY->"Сервер не показал доступные группы анархий";default->"Анархия №"+target+" не появилась в меню группы "+category;});return null;}
-        if(observation.foreignScreen()){cancel("Переход отменён: открыт другой экран");return null;}
-        if(!observation.ready())return null;
+        if(observation.screen()==ScreenState.FOREIGN){cancel("Переход отменён: открыт другой экран");return null;}
+        if(observation.screen()==ScreenState.WAIT||!observation.ready())return null;
         AnarchyMenu menu=observation.menu();
         if(stage==Stage.LOBBY){
             if(menu!=null){fail("Неожиданное меню при ожидании лобби");return null;}

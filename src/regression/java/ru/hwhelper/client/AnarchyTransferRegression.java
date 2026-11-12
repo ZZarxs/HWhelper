@@ -2,6 +2,9 @@ package ru.hwhelper.client;
 
 import com.mojang.brigadier.CommandDispatcher;
 import java.util.*;
+import net.minecraft.client.gui.screens.GenericMessageScreen;
+import net.minecraft.client.gui.screens.LevelLoadingScreen;
+import net.minecraft.client.gui.screens.multiplayer.ServerReconfigScreen;
 import net.minecraft.nbt.CompoundTag;
 import static ru.hwhelper.client.AnarchyTransferFlow.*;
 
@@ -13,19 +16,39 @@ public final class AnarchyTransferRegression {
     private static AnarchyMenu menu(int id,int state,AnarchyMenu.Entry... entries){return new AnarchyMenu(id,state,"Независимый заголовок",List.of(entries));}
     private static final AnarchyMenu CATEGORIES=menu(1,1,entry(0,"solo",""),entry(1,"duo",""),entry(2,"trio",""),entry(3,"clans",""));
     private static final AnarchyMenu SERVERS=menu(2,1,entry(18,"","lanarchy16"),entry(19,"","lanarchy17"));
-    private static Observation game(int current){return new Observation(true,true,current,false,false,null);}
-    private static Observation view(AnarchyMenu menu){return new Observation(true,true,0,false,false,menu);}
+    private static Observation game(int current){return new Observation(true,true,current,false,ScreenState.WORLD,null);}
+    private static Observation view(AnarchyMenu menu){return new Observation(true,true,0,false,ScreenState.SELECTOR,menu);}
+    private static Observation lobby(ScreenState screen){return new Observation(true,true,0,true,screen,null);}
     private static AnarchyTransferFlow toCategories(){return toCategories(17,"");}
     private static AnarchyTransferFlow toCategories(int target,String preferred){
         var flow=new AnarchyTransferFlow();
         require(flow.begin(target,7,0,1200,new HubSwapRanges(),preferred),"start requested target");
         require(flow.poll(game(7),1).kind()==Kind.HUB,"send supported hub command once");
         require(flow.poll(game(7),2)==null,"do not repeat hub while waiting");
-        require(flow.poll(new Observation(true,false,0,false,false,null),50)==null&&flow.active(),"survive world loading with live connection");
-        require(flow.poll(new Observation(true,true,0,true,false,null),100).kind()==Kind.LITE,"world-change/already-in-hub acknowledgement opens /lite");
+        require(flow.poll(new Observation(true,false,0,false,ScreenState.WAIT,null),50)==null&&flow.active(),"survive world loading with live connection");
+        require(flow.poll(lobby(ScreenState.WORLD),100).kind()==Kind.LITE,"world-change/already-in-hub acknowledgement opens /lite");
         require(flow.poll(game(0),110)==null,"do not repeat lite while waiting");return flow;
     }
+    private static void checkReconfiguration(){
+        require(AnarchySwitcher.isTransferLoadingScreen(ServerReconfigScreen.class),"recognize native reconfiguration screen");
+        require(AnarchySwitcher.isTransferLoadingScreen(LevelLoadingScreen.class),"recognize native world loading screen");
+        require(!AnarchySwitcher.isTransferLoadingScreen(GenericMessageScreen.class),"reject unrelated screen");
+
+        var flow=new AnarchyTransferFlow();
+        require(flow.begin(17,7,0,1200),"start route from another anarchy");
+        require(flow.poll(game(7),1).kind()==Kind.HUB,"send hub before reconfiguration");
+        require(flow.poll(new Observation(true,false,0,false,ScreenState.WAIT,null),100)==null&&flow.stage()==Stage.LOBBY,"keep route during server reconfiguration");
+        require(flow.poll(lobby(ScreenState.WAIT),200)==null&&flow.stage()==Stage.LOBBY,"wait even if hub world already exists");
+        require(flow.poll(lobby(ScreenState.WORLD),300).kind()==Kind.LITE,"open selector after hub loading ends");
+        require(flow.poll(view(CATEGORIES),400).slot()==1,"select category after loading");
+        require(flow.poll(view(SERVERS),500).slot()==19,"select destination after loading");
+        require(flow.poll(new Observation(true,false,0,false,ScreenState.WAIT,null),600)==null&&flow.stage()==Stage.CONFIRM,"keep route while destination reconfigures");
+        require(flow.poll(new Observation(true,true,17,false,ScreenState.WAIT,null),700)==null&&flow.stage()==Stage.CONFIRM,"wait for playable destination");
+        flow.poll(game(17),800);
+        require(flow.stage()==Stage.DONE,"confirm the destination after its loading screen closes");
+    }
     public static void main(String[] args)throws Exception {
+        checkReconfiguration();
         var profile=new HubSwapRanges();
         require(profile.total==66&&profile.category(1).equals("solo")&&profile.category(15).equals("solo"),"original Solo range");
         require(profile.category(16).equals("duo")&&profile.category(31).equals("duo"),"original Duo range");
@@ -124,17 +147,17 @@ public final class AnarchyTransferRegression {
         require(flow.poll(view(dualTag),200).slot()==1&&flow.stage()==Stage.SERVER,"category stage remains distinct even if item has both tags");
         require(flow.poll(view(dualTag),210)==null,"old category item is never mistaken for destination");
         require(flow.poll(view(SERVERS),250).slot()==19&&flow.stage()==Stage.CONFIRM,"destination is selected only after category inventory changes");
-        flow=new AnarchyTransferFlow();flow.begin(1,7,0,1200);flow.poll(game(7),1);flow.poll(new Observation(true,true,0,true,false,null),100);
+        flow=new AnarchyTransferFlow();flow.begin(1,7,0,1200);flow.poll(game(7),1);flow.poll(lobby(ScreenState.WORLD),100);
         flow.poll(view(CATEGORIES),150);
         require(flow.poll(view(menu(2,1,entry(4,"","lanarchy1"))),200)==null,"first server must not use lanarchy1");
         require(flow.poll(view(menu(3,1,entry(4,"","lanarchy"))),250).slot()==4,"first server uses original special value");
         flow=new AnarchyTransferFlow();flow.begin(17,7,0,1200);flow.poll(game(7),1);flow.poll(game(7),10000);require(flow.stage()==Stage.FAILED,"hub timeout");
         flow=toCategories();flow.poll(view(CATEGORIES),200);flow.poll(view(SERVERS),300);flow.poll(game(0),8299);require(flow.active(),"full confirmation window");flow.poll(game(0),8300);require(flow.stage()==Stage.FAILED,"eight-second confirmation timeout");
-        flow=new AnarchyTransferFlow();flow.begin(17,7,0,1200);flow.poll(game(7),1);flow.poll(new Observation(true,true,0,true,false,null),9900);flow.poll(view(CATEGORIES),19800);flow.poll(view(SERVERS),29700);flow.poll(game(0),30000);require(flow.stage()==Stage.FAILED,"overall 30-second cap");
-        flow=toCategories();flow.poll(new Observation(false,false,0,false,false,null),200);require(flow.stage()==Stage.CANCELLED,"disconnect cancels");
-        flow=toCategories();flow.poll(new Observation(true,true,0,false,true,null),200);require(flow.stage()==Stage.CANCELLED,"foreign UI cancels");
+        flow=new AnarchyTransferFlow();flow.begin(17,7,0,1200);flow.poll(game(7),1);flow.poll(lobby(ScreenState.WORLD),9900);flow.poll(view(CATEGORIES),19800);flow.poll(view(SERVERS),29700);flow.poll(game(0),30000);require(flow.stage()==Stage.FAILED,"overall 30-second cap");
+        flow=toCategories();flow.poll(new Observation(false,false,0,false,ScreenState.WAIT,null),200);require(flow.stage()==Stage.CANCELLED,"disconnect cancels even during loading");
+        flow=toCategories();flow.poll(new Observation(true,true,0,false,ScreenState.FOREIGN,null),200);require(flow.stage()==Stage.CANCELLED,"foreign UI cancels");
         for(int stop=0;stop<5;stop++){
-            flow=new AnarchyTransferFlow();flow.begin(17,7,0,1200);if(stop>0)flow.poll(game(7),1);if(stop>1)flow.poll(new Observation(true,true,0,true,false,null),100);if(stop>2)flow.poll(view(CATEGORIES),200);if(stop>3)flow.poll(view(SERVERS),300);
+            flow=new AnarchyTransferFlow();flow.begin(17,7,0,1200);if(stop>0)flow.poll(game(7),1);if(stop>1)flow.poll(lobby(ScreenState.WORLD),100);if(stop>2)flow.poll(view(CATEGORIES),200);if(stop>3)flow.poll(view(SERVERS),300);
             flow.cancel("manual action / disabled");require(flow.poll(view(SERVERS),400)==null&&flow.stage()==Stage.CANCELLED,"cancel stage "+stop);
         }
         require(!SERVERS.equals(menu(2,2,SERVERS.entries().toArray(AnarchyMenu.Entry[]::new))),"state change invalidates captured click");

@@ -7,12 +7,15 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.LevelLoadingScreen;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.gui.screens.multiplayer.ServerReconfigScreen;
 import net.minecraft.network.Connection;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.scores.*;
 import net.minecraft.world.inventory.ChestMenu;
 import org.lwjgl.glfw.GLFW;
+import ru.hwhelper.client.AnarchyTransferFlow.ScreenState;
 
 /** One shared, cancellable server-menu route for local commands, cards and keyboard shortcuts. */
 final class AnarchySwitcher {
@@ -47,6 +50,16 @@ final class AnarchySwitcher {
         case SERVER->"Ищу анархию №"+pending()+"…";default->"Подключение к анархии №"+pending()+"…";
     }:"Текущая: "+config.anarchy.name(current);}
     String shortcuts(){return previous.getTranslatedKeyMessage().getString()+" / "+next.getTranslatedKeyMessage().getString();}
+    // The same connection enters configuration before the new level becomes playable.
+    static boolean isTransferLoadingScreen(Class<? extends Screen> type){
+        return ServerReconfigScreen.class.isAssignableFrom(type)||LevelLoadingScreen.class.isAssignableFrom(type);
+    }
+    private static ScreenState transferScreen(Screen screen,boolean initial){
+        if(screen==null)return ScreenState.WORLD;
+        if(initial||isTransferLoadingScreen(screen.getClass()))return ScreenState.WAIT;
+        if(screen instanceof AbstractContainerScreen<?> container&&container.getMenu() instanceof ChestMenu&&container.getMenu().containerId>0)return ScreenState.SELECTOR;
+        return ScreenState.FOREIGN;
+    }
     void tick(Minecraft client){
         boolean menu=false,settings=false;int direction=0;
         while(open.consumeClick())menu=true;
@@ -60,14 +73,13 @@ final class AnarchySwitcher {
         if(!config.anarchy.enabled)cancel("Переход отменён: модуль выключен");
         if((settings||menu)&&client.screen==null)cancel("Переход отменён: открыты настройки");
         if(flow.active()){
-            boolean initial=client.screen!=null&&client.screen==initialScreen&&now()-requestedAt<500;
-            boolean serverMenu=client.screen instanceof AbstractContainerScreen<?> container&&container.getMenu() instanceof ChestMenu&&container.getMenu().containerId>0;
-            boolean foreign=client.screen!=null&&!serverMenu&&!(client.screen instanceof LevelLoadingScreen)&&!initial;
-            var snapshot=AnarchyMenuDriver.snapshot(client);
+            long time=now();
+            var screen=transferScreen(client.screen,client.screen==initialScreen&&time-requestedAt<500);
+            var snapshot=screen==ScreenState.SELECTOR?AnarchyMenuDriver.snapshot(client):null;
             boolean cursorClear=snapshot==null||!ready||client.player.containerMenu.getCarried().isEmpty();
-            var observation=new AnarchyTransferFlow.Observation(routeConnection!=null&&routeConnection.isConnected(),ready&&!initial&&cursorClear,current,
-                    ready&&(client.level!=previousWorld||alreadyHub),foreign,snapshot);
-            var action=flow.poll(observation,now());
+            var observation=new AnarchyTransferFlow.Observation(routeConnection!=null&&routeConnection.isConnected(),ready&&cursorClear,current,
+                    ready&&(client.level!=previousWorld||alreadyHub),screen,snapshot);
+            var action=flow.poll(observation,time);
             if(action!=null)try{driver.apply(client,action);}catch(RuntimeException exception){flow.fail("Переход остановлен: "+exception.getMessage());}
         }
         finish(client);
